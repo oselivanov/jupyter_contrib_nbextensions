@@ -52,9 +52,13 @@ define([
             add: {
                 extraKeys: {
                     "Esc": "leave_current_mode",
-                    "Ctrl-[": "leave_current_mode"
+                    //"Ctrl-[": "leave_current_mode"
+                    //'Shift-Esc': 'jupyter-notebook:enter-command-mode',
                 },
                 command_shortcuts: {
+                    'Esc': 'jupyter-notebook:enter-command-mode',
+
+                    /*
                     "Ctrl-c": "jupyter-notebook:interrupt-kernel",
                     "Ctrl-z": "jupyter-notebook:restart-kernel",
 
@@ -80,13 +84,14 @@ define([
 
                     "`": "jupyter-notebook:change-cell-to-code",
                     "0": "jupyter-notebook:change-cell-to-markdown"
+                    */
                 },
                 edit_shortcuts: {
-                    "Shift-Esc": "jupyter-notebook:enter-command-mode"
+                    "esc": "jupyter-notebook:close-pager"
                 }
             },
             remove: {
-                edit_shortcuts: ["Esc"]
+                //edit_shortcuts: ["esc"]
             },
             custom: function() {
                 disable_keyboard_manager_in_dialog(this);
@@ -357,6 +362,124 @@ define([
         highlight_selection(mode);
 
         previous_mode = mode;
+
+        if (mode == 'vim') {
+          var command_shortcuts = Jupyter.keyboard_manager.command_shortcuts;
+
+          var updateImage = function($cell, fn) {
+            var $viewer = $cell.find('.inline-image-viewer');
+            var $imgs = $viewer.find('> img');
+            var $title = $viewer.find('.inline-image-viewer-filename');
+
+            var index = $viewer.data('index');
+
+            $imgs.eq(index).css('display', '');
+            if (fn !== undefined) index = fn(index);
+            index = Math.min($imgs.length - 1, index);
+            index = Math.max(0, index);
+            $viewer.data('index', index);
+            var $img = $imgs.eq(index);
+            var l = ('' + $img.attr('src')).split('?');
+            var name =  l[0];
+            $title.text(name);
+            $img.css('display', 'block');
+          };
+
+          var updateLabels = function($cell, label) {
+            var $viewer = $cell.find('.inline-image-viewer');
+
+            var index = $viewer.data('index');
+            var $imgs = $viewer.find('> img');
+            var $img = $imgs.eq(index);
+            var labelCsv = $img.data('labelCsv');
+            if (labelCsv === undefined) labelCsv = '';
+
+            if (label !== undefined) {
+              if (labelCsv === '') labelArray = [];
+              else labelArray = labelCsv.split(',');
+
+              if (labelArray.indexOf(label) === -1) {
+                labelArray.push(label);
+              } else {
+                labelArray.splice(0, 1);
+              }
+              labelArray = labelArray.sort();
+              labelCsv = labelArray.join(',');
+              $img.data('labelCsv', labelCsv);
+            }
+
+            var $labels = $viewer.find('.inline-image-labels');
+            $labels.text(labelCsv);
+          };
+
+          var dumpLabels = function($cell, label) {
+            var $viewer = $cell.find('.inline-image-viewer');
+            var $imgs = $viewer.find('> img');
+            var labelArray = [];
+            var strs = [];
+            $imgs.each(function() {
+              var $img = $(this);
+              var labelCsv = $img.data('labelCsv');
+              if (labelCsv === undefined) labelCsv = '';
+              if (labelCsv === '') return;
+              var name = $img.attr('src').split('?')[0];
+              strs.push('    ["' + name + '", [' + labelCsv + ']]');
+            });
+            out = '[\n';
+            for (var i = 0; i < strs.length; ++i) out += strs[i] + (i == strs.length -1 ? '\n' : ',\n');
+            out += ']';
+            console.log(out);
+          };
+
+          command_shortcuts.add_shortcut('h', { handler: function (e) {
+            var $cell = $(Jupyter.notebook.get_selected_cell().element);
+            updateImage($cell, function(index) { return --index; });
+            updateLabels($cell);
+            return false;
+          }});
+
+          command_shortcuts.add_shortcut('l', { handler: function (e) {
+            var $cell = $(Jupyter.notebook.get_selected_cell().element);
+            updateImage($cell, function(index) { return ++index; });
+            updateLabels($cell);
+            return false;
+          }});
+
+          command_shortcuts.add_shortcut('1', { handler: function (e) {
+            var $cell = $(Jupyter.notebook.get_selected_cell().element);
+            updateLabels($cell, '1');
+            return false;
+          }});
+
+          command_shortcuts.add_shortcut('2', { handler: function (e) {
+            var $cell = $(Jupyter.notebook.get_selected_cell().element);
+            updateLabels($cell, '2');
+            return false;
+          }});
+
+          command_shortcuts.add_shortcut('0', { handler: function (e) {
+            var $cell = $(Jupyter.notebook.get_selected_cell().element);
+            dumpLabels($cell);
+            return false;
+          }});
+
+          CodeMirror.Vim.mapCommand(
+            'l', 'motion', 'moveByWords',
+            { forward: true, wordEnd: true, inclusive: true });
+
+          CodeMirror.Vim.mapCommand(
+            'h', 'motion', 'moveByWords',
+            {forward: false, wordEnd: false });
+
+          CodeMirror.Vim.mapCommand(
+            '<Space>', 'motion', 'moveByCharacters', { forward: true });
+
+          /*
+          var km = Jupyter.notebook.keyboard_manager;
+          km.edit_shortcuts.add_shortcut(
+            'w,j', "jupyter-notebook:move-cell-down", true);
+          */
+        }
     }
 
     window.switch_keymap = switch_keymap;
