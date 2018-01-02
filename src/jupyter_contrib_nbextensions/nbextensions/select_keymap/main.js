@@ -52,9 +52,13 @@ define([
             add: {
                 extraKeys: {
                     "Esc": "leave_current_mode",
-                    "Ctrl-[": "leave_current_mode"
+                    //"Ctrl-[": "leave_current_mode"
+                    //'Shift-Esc': 'jupyter-notebook:enter-command-mode',
                 },
                 command_shortcuts: {
+                    'Esc': 'jupyter-notebook:enter-command-mode',
+
+                    /*
                     "Ctrl-c": "jupyter-notebook:interrupt-kernel",
                     "Ctrl-z": "jupyter-notebook:restart-kernel",
 
@@ -80,13 +84,14 @@ define([
 
                     "`": "jupyter-notebook:change-cell-to-code",
                     "0": "jupyter-notebook:change-cell-to-markdown"
+                    */
                 },
                 edit_shortcuts: {
-                    "Shift-Esc": "jupyter-notebook:enter-command-mode"
+                    "esc": "jupyter-notebook:close-pager"
                 }
             },
             remove: {
-                edit_shortcuts: ["Esc"]
+                //edit_shortcuts: ["esc"]
             },
             custom: function() {
                 disable_keyboard_manager_in_dialog(this);
@@ -357,6 +362,19 @@ define([
         highlight_selection(mode);
 
         previous_mode = mode;
+
+        if (mode == 'vim') {
+          CodeMirror.Vim.mapCommand(
+            'l', 'motion', 'moveByWords',
+            { forward: true, wordEnd: true, inclusive: true });
+
+          CodeMirror.Vim.mapCommand(
+            'h', 'motion', 'moveByWords',
+            {forward: false, wordEnd: false });
+
+          CodeMirror.Vim.mapCommand(
+            '<Space>', 'motion', 'moveByCharacters', { forward: true });
+        }
     }
 
     window.switch_keymap = switch_keymap;
